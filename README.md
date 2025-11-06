@@ -3,9 +3,10 @@
 
 [![Paper](https://img.shields.io/badge/arXiv-Paper-red)](🔗 _arxiv_link_here_)  
 
-[![Website](https://img.shields.io/badge/Project-Website-blue)](🔗 _project_website_here_)
 
-[![HuggingFace](https://img.shields.io/badge/HuggingFace-Models-yellow)](🔗 [HuggingFace repo](https://huggingface.co/MINT-SJTU/Evo-1/tree/main))  
+[![HuggingFace](https://img.shields.io/badge/HuggingFace-Models-yellow)](🔗 [Checkpoints](https://huggingface.co/MINT-SJTU/Evo-1/tree/main))  
+
+[![HuggingFace](https://img.shields.io/badge/HuggingFace-Dataset-yellow)](🔗 [MetaWorld Dataset](https://huggingface.co/datasets/MINT-SJTU/Evo-1_MetaWorld))  
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
