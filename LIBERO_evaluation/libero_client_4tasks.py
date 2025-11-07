@@ -32,6 +32,8 @@ class Args():
 args = Args()
 
 ########################################
+
+os.makedirs(os.path.dirname(args.log_file), exist_ok=True)
 # ========= Logging =========
 logging.basicConfig(
     level=logging.INFO,
@@ -215,7 +217,7 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
 
                 # exit(0)
 
-            log.info(f"========= Task {task_id} Summary: {task_success}/{task_episodes} Successful =========")
+            log.info(f"========= Task {task_id + 1} Summary: {task_success}/{task_episodes} Successful =========")
             total_episodes += task_episodes
 
         # ======= Overall Summary =======

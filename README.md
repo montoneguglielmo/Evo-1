@@ -1,7 +1,7 @@
 
 # Evo-1: Lightweight Vision-Language-Action Model with Preserved Semantic Alignment
 
-[![📄 Paper](https://img.shields.io/badge/arXiv-Paper-red)]()  
+[![📄 Paper](https://img.shields.io/badge/arXiv-Paper-red)](https://arxiv.org/abs/2511.04555)  
 
 [![🤗 HuggingFace Models](https://img.shields.io/badge/HuggingFace-Models-yellow)](https://huggingface.co/MINT-SJTU/Evo-1/tree/main)  
 
@@ -240,10 +240,18 @@ accelerate launch --num_processes 1 --num_machines 1 --deepspeed_config_file ds_
 ```
 
 
-## 📚 Citatation
 
 ## 📬 Contact
 
 If you encounter any issues or have suggestions,  
 please open an issue or start a discussion on GitHub.  
 We sincerely welcome your feedback and contributions.
+
+You can also scan the QR code below to connect with me or join chatting group on WeChat:
+
+
+<p align="center">
+<img src="readme_pics/taolin.jpg" width="200" height="300">
+<img src="readme_pics/wechat_group.jpg" width="200" height="300">
+  
+</p>
