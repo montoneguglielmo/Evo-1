@@ -15,7 +15,7 @@
 
 
 ## 📰 News  
-- 🗓️ **2025-11-15** — Added Evo-1 inference in the LeRobot framework for SO100
+- 🗓️ **2025-11-15** — Added Evo-1 inference in the LeRobot framework for SO100/SO101
 - 🗓️ **2025-11-10** — Released inference script in xarm6
 - 🗓️ **2025-11-06** — Released Meta-World & LIBERO evaluation scripts  
 - 🗓️ **2025-11-06** — Uploaded model weights to HuggingFace  
@@ -27,7 +27,7 @@
 ## ✅ To-Do List  
 
 - ✅ Release inference script in xarm6 
-- ✅ Add Evo-1 to the LeRobot framework for SO100   
+- ✅ Add Evo-1 to the LeRobot framework for SO100/SO101   
 - ⬜ Release instructions for deploying Evo-1 on Jetson Orin
 - ⬜ Release results of all 50 RoboTwin tasks
 - ⬜ Release RoboTwin evaluation script  
