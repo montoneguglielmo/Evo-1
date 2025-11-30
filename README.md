@@ -217,11 +217,13 @@ Set the cache path so the dataset can be loaded from .pkl files next time for fa
 We use the two-stage training paradigm.
 
 ### 🚀 3.1 Setup deepspeed
+
 ```bash
 accelerate config     
 ```
 You can check this [setup guide](deepspeed_setup_example.txt)
 
+<br>
 
 ### 🚀 3.2 Stage 1
 
@@ -237,6 +239,7 @@ cd Evo_1/
 
 accelerate launch --num_processes 1 --num_machines 1 --deepspeed_config_file ds_config.json scripts/train.py --run_name Evo1_metaworld_stage1 --action_head flowmatching --use_augmentation --lr 1e-5 --dropout 0.2 --weight_decay 1e-3 --batch_size 16 --image_size 448 --max_steps 5000 --log_interval 10 --ckpt_interval 2500 --warmup_steps 1000 --grad_clip_norm 1.0 --num_layers 8 --horizon 50 --finetune_action_head --disable_wandb --vlm_name OpenGVLab/InternVL3-1B --dataset_config_path dataset/config.yaml --per_action_dim 24 --state_dim 24 --save_dir /your/path/checkpoints/stage1
 ```
+<br>
 
 ### 🚀 3.3 Stage 2
 We perform Full-scale training in stage 2.   
@@ -248,6 +251,8 @@ cd Evo_1/
 
 accelerate launch --num_processes 1 --num_machines 1 --deepspeed_config_file ds_config.json scripts/train.py --run_name Evo1_metaworld_stage2 --action_head flowmatching --use_augmentation --lr 1e-5 --dropout 0.2 --weight_decay 1e-3 --batch_size 16 --image_size 448 --max_steps 80000 --log_interval 10 --ckpt_interval 2500 --warmup_steps 1000 --grad_clip_norm 1.0 --num_layers 8 --horizon 50 --finetune_vlm --finetune_action_head --disable_wandb --vlm_name OpenGVLab/InternVL3-1B --dataset_config_path dataset/config.yaml --per_action_dim 24 --state_dim 24 --save_dir /your/path/checkpoints/stage2 --resume --resume_pretrain --resume_path /your/path/checkpoints/stage1/step_5000
 ```
+
+<br>
 
 ### 🚀 3.4 (Optional) Resume
 If you want to resume the training process, you can use the following command (we use stage 2 as an example):
