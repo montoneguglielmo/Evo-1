@@ -17,3 +17,4 @@ swanlab
 wandb
 av
 fvcore
+datasets>=2.18.0

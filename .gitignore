@@ -9,3 +9,9 @@ logs/
 checkpoints/
 Evo1_training_dataset/
 LIBERO/
+# Python virtual environment
+evo1_env/
+# Logs and outputs
+LIBERO_evaluation/log_file/
+LIBERO_evaluation/video_log_file/
+LIBERO_evaluation/model_params/

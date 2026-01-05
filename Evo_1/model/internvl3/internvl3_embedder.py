@@ -251,3 +251,15 @@ class InternVL3Embedder(nn.Module):
         fused_hidden = outputs.hidden_states[-1].to(torch.float32)
 
         return fused_hidden[:, 0, :] if return_cls_only else fused_hidden
+
+if __name__ == "__main__":
+    from dataset.lerobot_dataset_pretrain_mp import LeRobotDataset
+    
+    dataset = LeRobotDataset(
+            config=dataset_config,
+            image_size=image_size,
+            max_samples_per_file=max_samples,
+            action_horizon=horizon,
+            binarize_gripper=binarize_gripper,
+            use_augmentation=use_augmentation
+        )
