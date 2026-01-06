@@ -253,13 +253,81 @@ class InternVL3Embedder(nn.Module):
         return fused_hidden[:, 0, :] if return_cls_only else fused_hidden
 
 if __name__ == "__main__":
-    from dataset.lerobot_dataset_pretrain_mp import LeRobotDataset
+    import sys
+    import os
+    # Add project root to Python path (parent of dataset directory)
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
     
+    from dataset.lerobot_dataset_pretrain_mp import LeRobotDataset
+    # Add project root to Python path   
+    import yaml
+    from torch.utils.data import DataLoader
+
+    def custom_collate_fn(batch):
+        prompts = [item["prompt"] for item in batch]
+        images = [item["images"] for item in batch]
+        states = torch.stack([item["state"] for item in batch], dim=0)
+        actions = torch.stack([item["action"] for item in batch], dim=0)
+        action_mask = torch.stack([item["action_mask"] for item in batch], dim=0)
+        image_masks = torch.stack([item["image_mask"] for item in batch], dim=0)
+        state_mask = torch.stack([item["state_mask"] for item in batch], dim=0)
+        embodiment_ids = torch.stack([item["embodiment_id"] for item in batch], dim=0)
+
+        return {
+            "prompts": prompts,
+            "images": images,
+            "states": states,
+            "actions": actions,
+            "action_mask": action_mask,
+            "state_mask": state_mask,
+            "image_masks": image_masks,
+            "embodiment_ids": embodiment_ids
+        }
+
+
+    image_size=448    
+    dataset_config_path="../../dataset/config.yaml"
+    max_samples=None
+    horizon=50
+    binarize_gripper=False
+    use_augmentation=False
+    num_workers=1
+    batch_size=8
+    
+    with open(dataset_config_path, 'r') as f:
+        dataset_config = yaml.safe_load(f)
+        
     dataset = LeRobotDataset(
-            config=dataset_config,
-            image_size=image_size,
-            max_samples_per_file=max_samples,
-            action_horizon=horizon,
-            binarize_gripper=binarize_gripper,
-            use_augmentation=use_augmentation
-        )
+                    config=dataset_config,
+                    image_size=image_size,
+                    max_samples_per_file=max_samples,
+                    action_horizon=horizon,
+                    binarize_gripper=binarize_gripper,
+                    use_augmentation=use_augmentation
+                )
+    
+    
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=False,
+        drop_last=True,
+        collate_fn=custom_collate_fn
+    )
+    
+    # Inspect a single batch
+    batch = next(iter(dataloader))
+    
+    prompts = batch["prompts"]
+    images_batch = batch["images"]
+    image_masks = batch["image_masks"]
+            
+    embedder = InternVL3Embedder(image_size=image_size)        
+    for prompt, images, image_mask in zip(prompts, images_batch, image_masks):
+        fused = embedder.get_fused_image_text_embedding_from_tensor_images(images, image_mask, prompt)
+        print(fused.shape)
+    
+    
