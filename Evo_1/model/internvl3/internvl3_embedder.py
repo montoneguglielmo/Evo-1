@@ -12,6 +12,9 @@ from torchvision.transforms.functional import to_pil_image
 from typing import Union, List
 from torch import nn
 import logging
+
+logger = logging.getLogger(__name__)
+
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
@@ -112,12 +115,13 @@ class InternVL3Embedder(nn.Module):
             if isinstance(image, torch.Tensor):
                 image = to_pil_image(image)
             tiles = dynamic_preprocess(image, image_size=self.image_size)
+            logger.debug("Every image is split into %d tiles", len(tiles))
+            logger.debug("Every tile is resized to %s", tiles[0].size)
             tile_tensors = torch.stack([self.transform(t) for t in tiles])  # (T_i, 3, 448, 448)
             pixel_values_list.append(tile_tensors)
 
         pixel_values = torch.cat(pixel_values_list, dim=0).to(dtype=torch.bfloat16, device=self.device)
         num_tiles_list = [pv.shape[0] for pv in pixel_values_list]
-
         return pixel_values, num_tiles_list
 
     def _build_multimodal_prompt(
@@ -257,11 +261,19 @@ if __name__ == "__main__":
     import os
     # Add project root to Python path (parent of dataset directory)
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+    import logging
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
+    
     
     from dataset.lerobot_dataset_pretrain_mp import LeRobotDataset
     # Add project root to Python path   
     import yaml
     from torch.utils.data import DataLoader
+
 
     def custom_collate_fn(batch):
         prompts = [item["prompt"] for item in batch]
@@ -326,8 +338,17 @@ if __name__ == "__main__":
     image_masks = batch["image_masks"]
             
     embedder = InternVL3Embedder(image_size=image_size)        
-    for prompt, images, image_mask in zip(prompts, images_batch, image_masks):
-        fused = embedder.get_fused_image_text_embedding_from_tensor_images(images, image_mask, prompt)
-        print(fused.shape)
-    
-    
+
+    for idx, (prompt, images, image_mask) in enumerate(zip(prompts, images_batch, image_masks)):
+        logger.info("Processing sample %d", idx)
+
+        logger.debug("Images shape: %s", images.shape)
+        logger.debug("Prompt: %s", prompt)
+        logger.debug("Image mask shape: %s | values: %s", image_mask.shape, image_mask)
+
+        fused = embedder.get_fused_image_text_embedding_from_tensor_images(
+            images, image_mask, prompt
+        )
+
+        logger.debug("Fused embedding shape: %s", fused.shape)
+        
