@@ -110,18 +110,26 @@ class InternVL3Embedder(nn.Module):
         image_tensors: List[Union[Image.Image, torch.Tensor]]
     ) -> (torch.Tensor, List[int]):
 
+        #Image tensors shape: 3x3x448x448
+        # Steps:
+        # 1. Convert the images tensor to PIL images
+        # 2. Split the images into tiles (list of PIL images)
+        # 3. Normalize the tiles and convert them to tensors
+        # 4. Concatenate the tiles into a single tensor recreating the original tensor 
+
         pixel_values_list = []
         for i, image in enumerate(image_tensors):
             if isinstance(image, torch.Tensor):
                 image = to_pil_image(image)
             tiles = dynamic_preprocess(image, image_size=self.image_size)
-            logger.debug("Every image is split into %d tiles", len(tiles))
-            logger.debug("Every tile is resized to %s", tiles[0].size)
+            # Normalize the images
             tile_tensors = torch.stack([self.transform(t) for t in tiles])  # (T_i, 3, 448, 448)
             pixel_values_list.append(tile_tensors)
 
         pixel_values = torch.cat(pixel_values_list, dim=0).to(dtype=torch.bfloat16, device=self.device)
         num_tiles_list = [pv.shape[0] for pv in pixel_values_list]
+        # pixel_values image with shape: 3x3x448x448 and normalized
+        # num_tiles_list: [1, 1, 1]. Number of tiles for each image in the tensor pixel_values
         return pixel_values, num_tiles_list
 
     def _build_multimodal_prompt(
@@ -140,6 +148,13 @@ class InternVL3Embedder(nn.Module):
         IMG_END_TOKEN = "</img>"
 
         self.img_context_token_id = self.tokenizer.convert_tokens_to_ids(IMG_CONTEXT_TOKEN)
+        # self.img_context_token_id is an integer token id: 151667
+        # Adding to the prompt a number of <IMG_CONTEXT> tokens equal to the number of tiles for each image
+        # multiplied by the number of convolutional filters in the vision model.
+        # Example:
+        # num_tiles_list = [1,1,1]
+        # self.model.num_image_token = 256
+        # image_tokens = "<img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT>"
         for tile_count in num_tiles_list:
             token_count = self.model.num_image_token * tile_count
             image_tokens = IMG_START_TOKEN + IMG_CONTEXT_TOKEN * token_count + IMG_END_TOKEN
@@ -168,8 +183,8 @@ class InternVL3Embedder(nn.Module):
 
         model_inputs = self.tokenizer(prompt, return_tensors="pt", padding='max_length', truncation=True, max_length=self.max_text_length).to(self.device)
         input_ids = model_inputs["input_ids"]
+        logger.debug("Input ids shape: %s", input_ids.shape)
         attention_mask = model_inputs["attention_mask"]
-
        
         img_token_mask = (input_ids == self.img_context_token_id)
      
@@ -235,15 +250,20 @@ class InternVL3Embedder(nn.Module):
 
    
         pixel_values, num_tiles_list = self._preprocess_images(image_tensors)
-
-       
-        if pixel_values.shape[0] == 0:
-           
+        # pixel_values image with shape: 3x3x448x448 and normalized
+        # num_tiles_list = [1,1,1]  This is the number of tiles for each image in the tensor pixel_values
+        if pixel_values.shape[0] == 0:           
             print("Warning: No valid images to process after masking.")
-
+        
+        # pixel_values image with shape: 3x3x448x448 and normalized
         vit_embeds = self.model.extract_feature(pixel_values)
-        fused_embeds = vit_embeds  
+        # Shape of vit_embeds: [3, 256, 896]. This is the embedding of the image tiles.
+        
+        fused_embeds = vit_embeds
+        # num_tiles_list = [1,1,1]  
+        # text_prompt = 'pick up the black bowl from table center...' 
         prompt = self._build_multimodal_prompt(num_tiles_list, text_prompt)
+        # prompt: 'Image-1: <img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT>pick up the black bowl from table center...'
         inputs_embeds, attention_mask = self._prepare_and_fuse_embeddings(prompt, fused_embeds, image_mask, num_tiles_list)
 
         outputs = self.model.language_model(
@@ -341,14 +361,11 @@ if __name__ == "__main__":
 
     for idx, (prompt, images, image_mask) in enumerate(zip(prompts, images_batch, image_masks)):
         logger.info("Processing sample %d", idx)
-
-        logger.debug("Images shape: %s", images.shape)
-        logger.debug("Prompt: %s", prompt)
-        logger.debug("Image mask shape: %s | values: %s", image_mask.shape, image_mask)
+        logger.debug("Images shape: %s", images.shape) # 3x3x448x448
+        logger.debug("Prompt: %s", prompt) # "pick up the red ball"
+        logger.debug("Image mask shape: %s | values: %s", image_mask.shape, image_mask) # (3,) | [True, True, False]
 
         fused = embedder.get_fused_image_text_embedding_from_tensor_images(
             images, image_mask, prompt
         )
-
-        logger.debug("Fused embedding shape: %s", fused.shape)
         
