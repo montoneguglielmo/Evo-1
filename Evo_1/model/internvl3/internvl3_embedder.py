@@ -170,6 +170,11 @@ class InternVL3Embedder(nn.Module):
         num_tiles_list: List[int]
     ) -> (torch.Tensor, torch.Tensor):
    
+        # prompt: 'Image-1: <img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT>pick up the black bowl from table center...'
+        # vit_embeds: [3, 256, 896]
+        # image_mask: [True, True, False]
+        # num_tiles_list: [1,1,1]
+   
         untruncated_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
         true_sequence_length = untruncated_ids.shape[1]
 
@@ -183,24 +188,34 @@ class InternVL3Embedder(nn.Module):
 
         model_inputs = self.tokenizer(prompt, return_tensors="pt", padding='max_length', truncation=True, max_length=self.max_text_length).to(self.device)
         input_ids = model_inputs["input_ids"]
-        logger.debug("Input ids shape: %s", input_ids.shape)
+        # Input ids shape: [1, 1024]
         attention_mask = model_inputs["attention_mask"]
+        # Attention mask shape [1,1024]
+        # The attantion mask has some zeros at the end that are due to padding of the prompt
        
+        # Locate the positions of the <IMG_CONTEXT> tokens in the input ids
         img_token_mask = (input_ids == self.img_context_token_id)
-     
+        # Img token mask is a vector of True and False values of shape: torch.Size([1, 1024])
+             
         img_token_locations = torch.where(img_token_mask)[1]
-
+        # img_token_locations is a vector of integers with the positions of the <IMG_CONTEXT> tokens in the input ids
 
         input_embeds = self.model.language_model.get_input_embeddings()(input_ids).clone()
+        # input_embeds is a tensor of shape: [1, 1024, 896]
+        # Every token is embedded into a 896-dimensional vector.        
 
         B, N, C = input_embeds.shape
         input_embeds = input_embeds.reshape(B * N, C)
         input_ids = input_ids.reshape(B * N)
-
+        # input_ids is a vecotr of integers of shape [1024]
+        # input_embeds is a tensor of shape: [1024, 896]
+        
         selected = (input_ids == self.img_context_token_id)
-
             
         try:
+            # Pushing the image embeddings to the <IMG_CONTEXT> tokens
+            # vit_embeds.reshape(-1, C) is a tensor of shape: [3*256, 896]
+            # input_embeds[selected] is a tensor of shape: [768, 896]
             input_embeds[selected] = input_embeds[selected] * 0.0 + vit_embeds.reshape(-1, C)
             ignore_flag = False
         except Exception as e:
@@ -213,11 +228,14 @@ class InternVL3Embedder(nn.Module):
 
  
         tokens_per_tile = self.model.num_image_token 
+        # tokens_per_tile is an integer: 256
  
         torch.set_printoptions(profile="full", threshold=float('inf'))
    
         torch.set_printoptions(profile="default")
         current_token_idx = 0
+        # image_mask is a tensor of shape: [3] with values: [True, True, False]
+        # num_tiles_list is a list of integers: [1,1,1]
         for i in range(len(image_mask)):
            
             num_tiles_for_this_image = num_tiles_list[i]
@@ -228,6 +246,7 @@ class InternVL3Embedder(nn.Module):
                 start_idx = img_token_locations[current_token_idx]
                 end_idx = start_idx + num_tokens_for_this_image
                
+                # If the image_mask is False the attention_mask is set to 0
                 attention_mask[0, start_idx:end_idx] = 0
     
             current_token_idx += num_tokens_for_this_image
@@ -264,8 +283,12 @@ class InternVL3Embedder(nn.Module):
         # text_prompt = 'pick up the black bowl from table center...' 
         prompt = self._build_multimodal_prompt(num_tiles_list, text_prompt)
         # prompt: 'Image-1: <img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT>pick up the black bowl from table center...'
-        inputs_embeds, attention_mask = self._prepare_and_fuse_embeddings(prompt, fused_embeds, image_mask, num_tiles_list)
-
+        # fused_embeds: [3, 256, 896]
+        # image_mask: [True, True, False]
+        # num_tiles_list: [1,1,1]
+        inputs_embeds, attention_mask = self._prepare_and_fuse_embeddings(prompt, fused_embeds, image_mask, num_tiles_list)        
+        #inputs_embeds shape: [1, 1024, 896]
+        #attention_mask shape: [1, 1024]
         outputs = self.model.language_model(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
@@ -369,3 +392,4 @@ if __name__ == "__main__":
             images, image_mask, prompt
         )
         
+        logger.debug("Fused embedding shape: %s", fused.shape) # [1, 768]
