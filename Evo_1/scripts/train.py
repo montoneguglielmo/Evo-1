@@ -446,9 +446,9 @@ def train(config):
             
             fused_tokens = torch.cat(fused_tokens_list, dim=0)
 
-            with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
+            #with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
 
-                pred_velocity, noise = model(fused_tokens, state=states, actions_gt=actions_gt, action_mask=action_mask)
+            pred_velocity, noise = model(fused_tokens, state=states, actions_gt=actions_gt, action_mask=action_mask)
                 
             target_velocity = (actions_gt - noise).view(actions_gt.shape[0], -1)
             
