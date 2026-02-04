@@ -11,6 +11,32 @@ import random
 
 from libero.libero import benchmark, get_libero_path
 from libero.libero.envs import OffScreenRenderEnv
+from utils import EpisodeParquetWriter
+
+import argparse
+
+# =============================
+# Command-line arguments
+# =============================
+parser = argparse.ArgumentParser(description="Run EVO1 on LIBERO and optionally save trajectories")
+parser.add_argument(
+    "--save-trajectories",
+    action="store_true",
+    help="Whether to save trajectories in LeRobot format"
+)
+parser.add_argument(
+    "--dataset-dir",
+    type=str,
+    default="./evo1_rollout_dataset",
+    help="Root directory where trajectories/videos are saved"
+)
+
+args_cli = parser.parse_args()
+store_trajectories = args_cli.save_trajectories
+dataset_dir = args_cli.dataset_dir
+
+########################################
+
 os.environ["MUJOCO_GL"] = "osmes"
 
 LIBERO_DUMMY_ACTION = [0.0] * 6 + [0.0]
@@ -116,6 +142,9 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
     total_success = 0
     total_episodes = 0
     total_steps = 0
+    
+    if store_trajectories:
+        writer = EpisodeParquetWriter(root=os.path.join(dataset_dir, task_suite_name), chunk_id=0)
 
     async with websockets.connect(SERVER_URL) as ws:
         log.info(f"===========================Start task suite {task_suite_name}========================")
@@ -123,8 +152,6 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
         for task_id in range(num_tasks_in_suite):
 
             print(f"task_id{task_id}")
-            #if task_id+1 not in [1,5,7,9] :
-             #   continue
 
             task = task_suite.get_task(task_id)
             initial_states = task_suite.get_task_init_states(task_id)
@@ -153,6 +180,10 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
                 episode_done = False
                 max_step = 0
                 frames = []
+                
+                if store_trajectories:
+                    frames_agent = []
+                    frames_wrist = []
 
                 for step in range(max_steps):
                     max_step += 1
@@ -179,16 +210,33 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
                         else:
                             action[6] = 1
                         
-                        # action[6] = abs(1.0 - action[6])
+                        state = np.concatenate([
+                            obs["robot0_eef_pos"],
+                            quat2axisangle(obs["robot0_eef_quat"]),
+                            obs["robot0_gripper_qpos"]
+                        ])
                         
-                        print(f"gripper action", action[6])
+                        # action[6] = abs(1.0 - action[6])
                         try:
                             obs, reward, done, info = env.step(action[:7])
                         except ValueError as ve:
                             print(f"❌ the action is not valid: {ve}")
                             episode_done = False
                             break
-
+                        
+                        if store_trajectories:
+                            writer.add_step(
+                                state=state,
+                                action=np.array(action[:7]),
+                                frame_index=len(frames_agent),
+                                task_index=task_id,
+                                timestamp=len(frames_agent)*0.05
+                            )
+                            
+                            frame_agent = np.rot90(obs["agentview_image"], 2)
+                            frame_wrist = np.rot90(obs["robot0_eye_in_hand_image"], 2)
+                            frames_agent.append(frame_agent)
+                            frames_wrist.append(frame_wrist)
                         
                         frame = np.hstack([
                             np.rot90(obs["agentview_image"], 2),
@@ -206,8 +254,8 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
                             break
                     if episode_done:
                         break
-
-                
+                    
+                    
                 save_video(frames, f"task{task_id+1}_episode{ep+1}.mp4", fps=30, save_dir=f"./video_log_file/{args.ckpt_name}/{task_suite_name}")
 
                 if episode_done:
@@ -215,7 +263,11 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
                 else:
                     log.info(f"Task {task_id} | Episode {ep+1}: ❌ Fail")
 
-                # exit(0)
+                if store_trajectories:
+                    episode_index = writer.return_episode_index()
+                    writer.save_episode()
+                    save_video(frames_agent, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{dataset_dir}/chunk-000/observation.images.image")
+                    save_video(frames_wrist, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{dataset_dir}/chunk-000/observation.images.wrist")
 
             log.info(f"========= Task {task_id + 1} Summary: {task_success}/{task_episodes} Successful =========")
             total_episodes += task_episodes
