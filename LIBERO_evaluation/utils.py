@@ -15,8 +15,9 @@ def to_png_bytes(img_np):
 class EpisodeParquetWriter:
     def __init__(self, root, chunk_id=0):
         self.chunk_dir = os.path.join(root, "data", f"chunk-{chunk_id:03d}")
+        self.video_dir = os.path.join(root, "videos", f"chunk-{chunk_id:03d}")
         os.makedirs(self.chunk_dir, exist_ok=True)
-
+        os.makedirs(self.video_dir, exist_ok=True)
         self.rows = []
         self.episode_index = 0
 
@@ -47,3 +48,6 @@ class EpisodeParquetWriter:
         
     def return_episode_index(self):
         return self.episode_index
+    
+    def return_video_dir(self):
+        return self.video_dir

@@ -266,8 +266,9 @@ async def run(SERVER_URL: str, max_steps: int = None, num_episodes: int = None, 
                 if store_trajectories:
                     episode_index = writer.return_episode_index()
                     writer.save_episode()
-                    save_video(frames_agent, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{dataset_dir}/chunk-000/observation.images.image")
-                    save_video(frames_wrist, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{dataset_dir}/chunk-000/observation.images.wrist")
+                    video_dir = writer.return_video_dir()
+                    save_video(frames_agent, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{video_dir}/observation.images.image")
+                    save_video(frames_wrist, f"episode_{episode_index:06d}.mp4", fps=30, save_dir=f"{video_dir}/observation.images.wrist")
 
             log.info(f"========= Task {task_id + 1} Summary: {task_success}/{task_episodes} Successful =========")
             total_episodes += task_episodes
